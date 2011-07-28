@@ -1,4 +1,10 @@
-Revision history for App-UniqFile
+Revision history for App-UniqFiles
+
+0.03    2011-07-28
+
+        Fix behaviour to match `uniq` command: by default, duplicate files are
+        returned but only one for each content.
+
 
 0.02    2011-07-28
 

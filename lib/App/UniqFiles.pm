@@ -34,7 +34,7 @@ _
             default => 1,
             arg_aliases => {
                 u => {
-                    summary => 'Alias for --report-unique --noreport-duplicate',
+                    summary => 'Alias for --report-unique --report-duplicate=0',
                     code => sub {
                         my %args = @_;
                         my $args = $args{args};
@@ -43,7 +43,8 @@ _
                     },
                 },
                 d => {
-                    summary => 'Alias for --noreport-unique --report-duplicate',
+                    summary =>
+                        'Alias for --noreport-unique --report-duplicate=1',
                     code => sub {
                         my %args = @_;
                         my $args = $args{args};

@@ -43,5 +43,10 @@ $res = uniq_files(files => \@f, count=>1);
 is_deeply($res->[2], {f1=>3, f2=>3, f3=>1, f4=>1, f5=>3}, "count")
     or diag explain $res;
 
+# check_content=0
+$res = uniq_files(files => \@f, count=>1, check_content=>0);
+is_deeply($res->[2], {f1=>4, f2=>4, f3=>4, f4=>1, f5=>4}, "check_content=0")
+    or diag explain $res;
+
 chdir "/" if Test::More->builder->is_passing;
 done_testing();

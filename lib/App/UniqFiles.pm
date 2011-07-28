@@ -75,6 +75,17 @@ _
             arg_aliases => {
             },
         }],
+        check_content => [bool => {
+            summary => "Whether to check file content ",
+            description => <<'_',
+
+If set to 0, uniqueness will be determined solely from file size. This can be
+quicker but might generate a false positive when two files of the same size are
+deemed as duplicate even though their content are different.
+
+_
+            default => 1,
+        }],
         count => [bool => {
             summary => "Whether to return each file content's ".
                 "number of occurence",
@@ -95,6 +106,7 @@ sub uniq_files {
     return [400, "Please specify files"] if !$files || !@$files;
     my $report_unique    = $args{report_unique}    // 1;
     my $report_duplicate = $args{report_duplicate} // 2;
+    my $check_content    = $args{check_content}    // 1;
     my $count            = $args{count}            // 0;
 
     # get sizes of all files
@@ -117,14 +129,19 @@ sub uniq_files {
     for my $f (@$files) {
         next unless defined $file_sizes{$f};
         next if $size_counts{ $file_sizes{$f} } == 1;
-        my $fh;
-        unless (open $fh, "<", $f) {
-            $log->error("Can't open file `$f`: $!, skipped");
-            next;
+        my $digest;
+        if ($check_content) {
+            my $fh;
+            unless (open $fh, "<", $f) {
+                $log->error("Can't open file `$f`: $!, skipped");
+                next;
+            }
+            my $ctx = Digest::MD5->new;
+            $ctx->addfile($fh);
+            $digest = $ctx->hexdigest;
+        } else {
+            $digest = "";
         }
-        my $ctx = Digest::MD5->new;
-        $ctx->addfile($fh);
-        my $digest = $ctx->hexdigest;
         $digest_counts{$digest}++;
         $digest_files{$digest} //= [];
         push @{$digest_files{$digest}}, $f;

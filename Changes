@@ -1,5 +1,10 @@
 Revision history for App-UniqFile
 
+0.02    2011-07-28
+
+        Minor bug fixes; use logging in script.
+
+
 0.01    2011-07-28
 
         First release.

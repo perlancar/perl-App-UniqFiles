@@ -30,7 +30,7 @@ _
             arg_greedy => 1,
         }],
         report_unique => [bool => {
-            summary => 'Return unique items',
+            summary => 'Whether to return unique items',
             default => 1,
             arg_aliases => {
                 u => {
@@ -42,12 +42,6 @@ _
                         $args->{report_duplicate} = 0;
                     },
                 },
-            },
-        }],
-        report_duplicate => [bool => {
-            summary => 'Return duplicate items',
-            default => 0,
-            arg_aliases => {
                 d => {
                     summary => 'Alias for --noreport-unique --report-duplicate',
                     code => sub {
@@ -59,8 +53,30 @@ _
                 },
             },
         }],
+        report_duplicate => [int => {
+            summary => 'Whether to return duplicate items',
+            description => <<'_',
+
+Can be set to either 0, 1, 2.
+
+If set to 2 (the default), will only return the first of duplicate items. For
+example: file1 contains text 'a', file2 'b', file3 'a'. Only file1 will be
+returned because file2 is unique and file3 contains 'a' (already represented by
+file1).
+
+If set to 1, will return all the the duplicate items. From the above example:
+file1 and file3 will be returned.
+
+If set to 0, duplicate items will not be returned.
+
+_
+            default => 2,
+            arg_aliases => {
+            },
+        }],
         count => [bool => {
-            summary => "Return each file content's number of occurence",
+            summary => "Whether to return each file content's ".
+                "number of occurence",
             description => <<'_',
 
 1 means the file content is only encountered once (unique), 2 means there is one
@@ -77,7 +93,7 @@ sub uniq_files {
     my $files = $args{files};
     return [400, "Please specify files"] if !$files || !@$files;
     my $report_unique    = $args{report_unique}    // 1;
-    my $report_duplicate = $args{report_duplicate} // 0;
+    my $report_duplicate = $args{report_duplicate} // 2;
     my $count            = $args{count}            // 0;
 
     # get sizes of all files
@@ -95,6 +111,7 @@ sub uniq_files {
 
     # calculate digest for all files having non-unique sizes
     my %digest_counts; # key = digest, value = num of files having that digest
+    my %digest_files; # key = digest, value = [file, ...]
     my %file_digests; # key = filename, value = file digest
     for my $f (@$files) {
         next unless defined $file_sizes{$f};
@@ -108,6 +125,8 @@ sub uniq_files {
         $ctx->addfile($fh);
         my $digest = $ctx->hexdigest;
         $digest_counts{$digest}++;
+        $digest_files{$digest} //= [];
+        push @{$digest_files{$digest}}, $f;
         $file_digests{$f} = $digest;
     }
 
@@ -124,12 +143,20 @@ sub uniq_files {
     if ($count) {
         return [200, "OK", \%file_counts];
     } else {
+        #$log->trace("report_duplicate=$report_duplicate");
         my @files;
         for (sort keys %file_counts) {
             if ($file_counts{$_} == 1) {
+                #$log->trace("unique file `$_`");
                 push @files, $_ if $report_unique;
             } else {
-                push @files, $_ if $report_duplicate;
+                #$log->trace("duplicate file `$_`");
+                if ($report_duplicate == 1) {
+                    push @files, $_;
+                } elsif ($report_duplicate == 2) {
+                    my $digest = $file_digests{$_};
+                    push @files, $_ if $_ eq $digest_files{$digest}[0];
+                }
             }
         }
         return [200, "OK", \@files];
@@ -159,7 +186,9 @@ None are exported, but they are exportable.
 
 =item * Handle symlinks
 
-Provide options on how to handle symlinks: ignore them? Follow?
+Provide options on how to handle symlinks: ignore them? Follow? Also, with
+return_duplicate=2, we should not use the symlink (because one of the usage of
+uniq-files might be to delete duplicate files).
 
 =item * Handle special files (socket, pipe, device)
 

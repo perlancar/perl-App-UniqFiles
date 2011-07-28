@@ -175,6 +175,9 @@ __END__
 
 =head1 DESCRIPTION
 
+Warning: cannot properly handle symlinks or special files (socket, pipe,
+device), so don't feed them.
+
 
 =head1 FUNCTIONS
 

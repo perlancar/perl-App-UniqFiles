@@ -16,6 +16,7 @@ our @EXPORT_OK = qw(uniq_files);
 our %SPEC;
 
 $SPEC{uniq_files} = {
+    v => 1.1,
     summary => 'Report or omit duplicate file contents',
     description => <<'_',
 
@@ -24,20 +25,20 @@ content. Interface is a bit like the `uniq` Unix command-line program.
 
 _
     args    => {
-        files => ['array*' => {
-            of         => 'str*',
-            arg_pos    => 0,
-            arg_greedy => 1,
-        }],
-        report_unique => [bool => {
+        files => {
+            schema => ['array*' => {of=>'str*'}],
+            req    => 1,
+            pos    => 0,
+            greedy => 1,
+        },
+        report_unique => {
+            schema => [bool => {default=>1}],
             summary => 'Whether to return unique items',
-            default => 1,
-            arg_aliases => {
+            cmdline_aliases => {
                 u => {
                     summary => 'Alias for --report-unique --report-duplicate=0',
                     code => sub {
-                        my %args = @_;
-                        my $args = $args{args};
+                        my $args = shift;
                         $args->{report_unique}    = 1;
                         $args->{report_duplicate} = 0;
                     },
@@ -46,15 +47,15 @@ _
                     summary =>
                         'Alias for --noreport-unique --report-duplicate=1',
                     code => sub {
-                        my %args = @_;
-                        my $args = $args{args};
+                        my $args = shift;
                         $args->{report_unique}    = 0;
                         $args->{report_duplicate} = 1;
                     },
                 },
             },
-        }],
-        report_duplicate => [int => {
+        },
+        report_duplicate => {
+            schema => [int => {default=>2}],
             summary => 'Whether to return duplicate items',
             description => <<'_',
 
@@ -71,11 +72,11 @@ file1 and file3 will be returned.
 If set to 0, duplicate items will not be returned.
 
 _
-            default => 2,
-            arg_aliases => {
+            cmdline_aliases => {
             },
-        }],
-        check_content => [bool => {
+        },
+        check_content => {
+            schema => [bool => {default=>1}],
             summary => "Whether to check file content ",
             description => <<'_',
 
@@ -84,9 +85,9 @@ quicker but might generate a false positive when two files of the same size are
 deemed as duplicate even though their content are different.
 
 _
-            default => 1,
-        }],
-        count => [bool => {
+        },
+        count => {
+            schema => [bool => {default=>0}],
             summary => "Whether to return each file content's ".
                 "number of occurence",
             description => <<'_',
@@ -95,8 +96,7 @@ _
 duplicate, and so on.
 
 _
-            default => 0,
-        }],
+        },
     },
 };
 sub uniq_files {

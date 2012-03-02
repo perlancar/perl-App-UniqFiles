@@ -7,12 +7,11 @@ use 5.010;
 use strict;
 use warnings;
 
-use Log::Any::App;
-use Sub::Spec::CmdLine qw(run);
+use Perinci::CmdLine;
 
 # VERSION
 
-run(module => 'App::UniqFiles', sub=>'uniq_files');
+Perinci::CmdLine->new(url => '/App/UniqFiles/uniq_files')->run;
 
 1;
 # ABSTRACT: Report or omit duplicate file contents

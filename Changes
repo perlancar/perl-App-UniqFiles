@@ -1,5 +1,10 @@
 Revision history for App-UniqFiles
 
+0.05    2011-07-28
+
+        No functional changes. Replace Sub::Spec with Rinci/Perinci.
+
+
 0.04    2011-07-28
 
         [ENHANCEMENTS]

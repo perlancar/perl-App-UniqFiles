@@ -1,8 +1,5 @@
 #!/usr/bin/perl
 
-# workaround for dzil
-package uniq_files;
-
 use 5.010;
 use strict;
 use warnings;
@@ -15,7 +12,7 @@ Perinci::CmdLine->new(url => '/App/UniqFiles/uniq_files')->run;
 
 1;
 # ABSTRACT: Report or omit duplicate file contents
-__END__
+# PODNAME: uniq-files
 
 =head1 SYNOPSIS
 

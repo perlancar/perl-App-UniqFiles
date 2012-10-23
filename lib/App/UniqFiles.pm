@@ -190,15 +190,10 @@ __END__
  # See uniq-files script
 
 
-=head1 DESCRIPTION
+=head1 NOTES
 
 Warning: cannot properly handle symlinks or special files (socket, pipe,
 device), so don't feed them.
-
-
-=head1 FUNCTIONS
-
-None are exported, but they are exportable.
 
 
 =head1 TODO

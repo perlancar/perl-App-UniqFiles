@@ -1,28 +1,28 @@
 Revision history for App-UniqFiles
 
-0.05    2011-07-28
+0.05    2011-07-28 (SHARYANTO)
 
-        No functional changes. Replace Sub::Spec with Rinci/Perinci.
+        - No functional changes. Replace Sub::Spec with Rinci/Perinci.
 
 
-0.04    2011-07-28
+0.04    2011-07-28 (SHARYANTO)
 
         [ENHANCEMENTS]
 
-        Add option: check_content.
+        - Add option: check_content.
 
 
-0.03    2011-07-28
+0.03    2011-07-28 (SHARYANTO)
 
-        Fix behaviour to match `uniq` command: by default, duplicate files are
-        returned but only one for each content.
-
-
-0.02    2011-07-28
-
-        Minor bug fixes; use logging in script.
+        - Fix behaviour to match `uniq` command: by default, duplicate files are
+          returned but only one for each content.
 
 
-0.01    2011-07-28
+0.02    2011-07-28 (SHARYANTO)
 
-        First release.
+        - Minor bug fixes; use logging in script.
+
+
+0.01    2011-07-28 (SHARYANTO)
+
+        - First release.

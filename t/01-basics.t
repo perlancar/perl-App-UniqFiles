@@ -7,7 +7,7 @@ use warnings;
 use Test::More 0.98;
 
 use File::chdir;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file);
 use File::Temp qw(tempdir);
 use App::UniqFiles qw(uniq_files);
 

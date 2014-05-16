@@ -1,8 +1,17 @@
 Revision history for App-UniqFiles
 
+0.06    2014-05-16 (SHARYANTO)
+
+        - No functional changes.
+
+        - Replace File::Slurp with File::Slurp::Tiny.
+
+
 0.05    2012-03-02 (SHARYANTO)
 
-        - No functional changes. Replace Sub::Spec with Rinci/Perinci.
+        - No functional changes.
+
+        - Replace Sub::Spec with Rinci/Perinci.
 
 
 0.04    2011-07-28 (SHARYANTO)

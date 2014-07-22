@@ -4,11 +4,11 @@ use 5.010;
 use strict;
 use warnings;
 
-use Perinci::CmdLine;
+use Perinci::CmdLine::Any;
 
 # VERSION
 
-Perinci::CmdLine->new(url => '/App/UniqFiles/uniq_files')->run;
+Perinci::CmdLine::Any->new(url => '/App/UniqFiles/uniq_files')->run;
 
 1;
 # ABSTRACT: Report or omit duplicate file contents

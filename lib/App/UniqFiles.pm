@@ -98,6 +98,23 @@ duplicate, and so on.
 _
         },
     },
+    examples => [
+        {
+            summary   => 'List all files which do no have duplicate contents',
+            src       => 'uniq-files *',
+            src_plang => 'bash',
+        },
+        {
+            summary   => 'List all files which have duplicate contents',
+            src       => 'uniq-files -d *',
+            src_plang => 'bash',
+        },
+        {
+            summary   => 'List number of occurences of contents for each file',
+            src       => 'uniq-files -c *',
+            src_plang => 'bash',
+        },
+    ],
 };
 sub uniq_files {
     my %args = @_;

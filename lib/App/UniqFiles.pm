@@ -1,5 +1,8 @@
 package App::UniqFiles;
 
+# DATE
+# VERSION
+
 use 5.010001;
 use strict;
 use warnings;
@@ -10,8 +13,6 @@ use Digest::MD5;
 require Exporter;
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw(uniq_files);
-
-# VERSION
 
 our %SPEC;
 
@@ -199,8 +200,7 @@ sub uniq_files {
 }
 
 1;
-#ABSTRACT: Report or omit duplicate file contents
-__END__
+#ABSTRACT:
 
 =head1 SYNOPSIS
 

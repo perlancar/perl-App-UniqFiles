@@ -212,33 +212,3 @@ sub uniq_files {
 Warning: cannot properly handle symlinks or special files (socket, pipe,
 device), so don't feed them.
 
-
-=head1 TODO
-
-=over 4
-
-=item * Handle symlinks
-
-Provide options on how to handle symlinks: ignore them? Follow? Also, with
-return_duplicate=2, we should not use the symlink (because one of the usage of
-uniq-files might be to delete duplicate files).
-
-=item * Handle special files (socket, pipe, device)
-
-Ignore them.
-
-=item * Check hardlinks/inodes first
-
-For fast checking.
-
-=item * Arguments hash_skip_bytes & hash_bytes
-
-For only checking uniqueness against parts of contents.
-
-=item * Arguments hash_module/hash_method/hash_sub
-
-For doing custom hashing instead of Digest::MD5.
-
-=back
-
-=cut

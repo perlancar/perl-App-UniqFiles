@@ -1,5 +1,12 @@
 Revision history for App-UniqFiles
 
+0.09    2015-01-03 (PERLANCAR)
+
+	- No functional changes.
+
+	- Rebuild (Generate TODO.md).
+
+
 0.08     2014-08-16 (SHARYANTO) - Happy 19th CPAN Day!
 
          - [build] CLI scripts are now generated automatically using

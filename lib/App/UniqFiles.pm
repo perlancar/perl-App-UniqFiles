@@ -6,7 +6,7 @@ package App::UniqFiles;
 use 5.010001;
 use strict;
 use warnings;
-use Log::Any qw($log);
+use Log::Any::IfLOG qw($log);
 
 use Digest::MD5;
 
@@ -211,4 +211,3 @@ sub uniq_files {
 
 Warning: cannot properly handle symlinks or special files (socket, pipe,
 device), so don't feed them.
-

@@ -104,16 +104,22 @@ _
             summary   => 'List all files which do no have duplicate contents',
             src       => 'uniq-files *',
             src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
         },
         {
             summary   => 'List all files which have duplicate contents',
             src       => 'uniq-files -d *',
             src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
         },
         {
             summary   => 'List number of occurences of contents for each file',
             src       => 'uniq-files -c *',
             src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
         },
     ],
 };

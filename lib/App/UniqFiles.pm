@@ -6,7 +6,7 @@ package App::UniqFiles;
 use 5.010001;
 use strict;
 use warnings;
-use Log::Any::IfLOG qw($log);
+use Log::ger;
 
 use Digest::MD5;
 
@@ -133,7 +133,7 @@ sub uniq_files {
     for my $f (@$files) {
         my @st = stat $f;
         unless (@st) {
-            $log->error("Can't stat file `$f`: $!, skipped");
+            log_error("Can't stat file `$f`: $!, skipped");
             next;
         }
         $size_counts{$st[7]}++;
@@ -151,7 +151,7 @@ sub uniq_files {
         if ($check_content) {
             my $fh;
             unless (open $fh, "<", $f) {
-                $log->error("Can't open file `$f`: $!, skipped");
+                log_error("Can't open file `$f`: $!, skipped");
                 next;
             }
             my $ctx = Digest::MD5->new;

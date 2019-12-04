@@ -1,4 +1,6 @@
-0.130   2019-12-04  Released-By: PERLANCAR; Urgency: medium
+0.130   2019-12-04  Released-By: PERLANCAR; Urgency: low
+
+	- No functional changes.
 
 	- [doc] Mention find-duplicate-filenames.
 

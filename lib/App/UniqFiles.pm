@@ -199,33 +199,34 @@ sub uniq_files {
         }
     }
 
-    if ($count) {
-        return [200, "OK", \%file_counts];
-    } else {
-        #$log->trace("report_duplicate=$report_duplicate");
-        my @files;
-        for (sort keys %file_counts) {
-            if ($file_counts{$_} == 1) {
-                #$log->trace("unique file `$_`");
-                push @files, $_ if $report_unique;
+    #$log->trace("report_duplicate=$report_duplicate");
+    my @files;
+    for (sort keys %file_counts) {
+        if ($file_counts{$_} == 1) {
+            #$log->trace("unique file `$_`");
+            push @files, $_ if $report_unique;
+        } else {
+            #$log->trace("duplicate file `$_`");
+            if ($report_duplicate == 0) {
+                # do not report dupe files
+            } elsif ($report_duplicate == 1) {
+                push @files, $_;
+            } elsif ($report_duplicate == 2) {
+                my $digest = $file_digests{$_};
+                push @files, $_ if $_ eq $digest_files{$digest}[0];
+            } elsif ($report_duplicate == 3) {
+                my $digest = $file_digests{$_};
+                push @files, $_ if $_ ne $digest_files{$digest}[0];
             } else {
-                #$log->trace("duplicate file `$_`");
-                if ($report_duplicate == 0) {
-                    # do not report dupe files
-                } elsif ($report_duplicate == 1) {
-                    push @files, $_;
-                } elsif ($report_duplicate == 2) {
-                    my $digest = $file_digests{$_};
-                    push @files, $_ if $_ eq $digest_files{$digest}[0];
-                } elsif ($report_duplicate == 3) {
-                    my $digest = $file_digests{$_};
-                    push @files, $_ if $_ ne $digest_files{$digest}[0];
-                } else {
-                    die "Invalid value for --report-duplicate ".
-                        "'$report_duplicate', please choose 0/1/2/3";
-                }
+                die "Invalid value for --report-duplicate ".
+                    "'$report_duplicate', please choose 0/1/2/3";
             }
         }
+    }
+
+    if ($count) {
+        return [200, "OK", [map {[$_, $file_counts{$_}]} @files]];
+    } else {
         return [200, "OK", \@files];
     }
 }

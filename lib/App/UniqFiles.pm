@@ -10,8 +10,6 @@ use strict;
 use warnings;
 use Log::ger;
 
-use Digest::MD5;
-
 require Exporter;
 our @ISA       = qw(Exporter);
 our @EXPORT_OK = qw(uniq_files);
@@ -27,6 +25,7 @@ sub _glob {
         sub {
             return if -l $_;
             return unless -f _;
+            no warnings 'once'; # $File::Find::dir
             push @res, "$File::Find::dir/$_";
         },
         @_,
@@ -58,6 +57,20 @@ _
 If set to true, will recurse into subdirectories.
 
 _
+        },
+        group_by_digest => {
+            summary => 'Sort files by its digest (or size, if not computing digest), separate each different digest',
+            schema => 'bool*',
+        },
+        show_digest => {
+            summary => 'Show the digest value (or the size, if not computing digest) for each file',
+            description => <<'_',
+
+Note that this routine does not compute digest for files which have unique
+sizes, so they will show up as empty.
+
+_
+            schema => 'bool*',
         },
         # TODO add option follow_symlinks?
         report_unique => {
@@ -126,16 +139,38 @@ _
             cmdline_aliases => {
             },
         },
-        check_content => {
-            schema => [bool => {default=>1}],
-            summary => "Whether to check file content ",
+        algorithm => {
+            schema => ['str*'],
+            summary => "What algorithm is used to compute the digest of the content",
             description => <<'_',
 
-If set to 0, uniqueness will be determined solely from file size. This can be
-quicker but might generate a false positive when two files of the same size are
-deemed as duplicate even though their content are different.
+The default is to use `md5`. Some algorithms supported include `crc32`, `sha1`,
+`sha256`, as well as `Digest` to use Perl <pm:Digest> which supports a lot of
+other algorithms, e.g. `SHA-1`, `BLAKE2b`.
+
+If set to '', 'none', or 'size', then digest will be set to file size. This
+means uniqueness will be determined solely from file size. This can be quicker
+but will generate a false positive when two files of the same size are deemed as
+duplicate even though their content may be different.
 
 _
+        },
+        digest_args => {
+            schema => ['array*',
+
+                       # comment out temporarily, Perinci::Sub::GetArgs::Argv
+                       # clashes with coerce rules; we should fix
+                       # Perinci::Sub::GetArgs::Argv to observe coercion rules
+                       # first
+                       #of=>'str*',
+
+                       'x.perl.coerce_rules'=>['From_str::comma_sep']],
+            description => <<'_',
+
+Some Digest algorithms require arguments, you can pass them here.
+
+_
+            cmdline_aliases => {A=>{}},
         },
         count => {
             schema => [bool => {default=>0}],
@@ -186,6 +221,14 @@ _
             test      => 0,
             'x.doc.show_result' => 0,
         },
+        {
+            summary   => 'List all files, along with their number of content occurrences and content digest. '.
+                'Use the BLAKE2b digest algorithm. And group the files according to their digest.',
+            src       => 'uniq-files -a -c --show-digest -A BLAKE2,blake2b *',
+            src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
+        },
     ],
 };
 sub uniq_files {
@@ -196,8 +239,11 @@ sub uniq_files {
     my $recurse          = $args{recurse};
     my $report_unique    = $args{report_unique}    // 1;
     my $report_duplicate = $args{report_duplicate} // 2;
-    my $check_content    = $args{check_content}    // 1;
     my $count            = $args{count}            // 0;
+    my $show_digest      = $args{show_digest}      // 0;
+    my $digest_args      = $args{digest_args};
+    my $algorithm        = $args{algorithm}        // ($digest_args ? 'Digest' : 'md5');
+    my $group_by_digest  = $args{group_by_digest};
 
     if ($recurse) {
         $files = [ map {
@@ -230,48 +276,46 @@ sub uniq_files {
     }
     $files = $ffiles;
 
-    # get sizes of all files
     my %size_counts; # key = size, value = number of files having that size
     my %file_sizes; # key = filename, value = file size, for caching stat()
-    for my $f (@$files) {
-        my @st = stat $f;
-        unless (@st) {
-            log_error("Can't stat file `$f`: $!, skipped");
-            next;
+  GET_FILE_SIZES: {
+        for my $f (@$files) {
+            my @st = stat $f;
+            unless (@st) {
+                log_error("Can't stat file `$f`: $!, skipped");
+                next;
+            }
+            $size_counts{$st[7]}++;
+            $file_sizes{$f} = $st[7];
         }
-        $size_counts{$st[7]}++;
-        $file_sizes{$f} = $st[7];
     }
 
     # calculate digest for all files having non-unique sizes
     my %digest_counts; # key = digest, value = num of files having that digest
     my %digest_files; # key = digest, value = [file, ...]
     my %file_digests; # key = filename, value = file digest
-    for my $f (@$files) {
-        next unless defined $file_sizes{$f};
-        next if $size_counts{ $file_sizes{$f} } == 1;
-        my $digest;
-        if ($check_content) {
-            my $fh;
-            unless (open $fh, "<", $f) {
-                log_error("Can't open file `$f`: $!, skipped");
-                next;
-            }
-            my $ctx = Digest::MD5->new;
-            $ctx->addfile($fh);
-            $digest = $ctx->hexdigest;
-        } else {
-            $digest = "";
+  CALC_FILE_DIGESTS: {
+        last if $algorithm eq '' || $algorithm eq 'none' || $algorithm eq 'size';
+        require File::Digest;
+
+        for my $f (@$files) {
+            next unless defined $file_sizes{$f}; # just checking. all files should have sizes.
+            next if $size_counts{ $file_sizes{$f} } == 1; # skip unique file sizes.
+            my $res = File::Digest::digest_file(
+                file=>$f, algorithm=>$algorithm, digest_args=>$digest_args);
+            return [500, "Can't calculate digest for file '$f': $res->[0] - $res->[1]"]
+                unless $res->[0] == 200;
+            my $digest = $res->[2];
+            $digest_counts{$digest}++;
+            $digest_files{$digest} //= [];
+            push @{$digest_files{$digest}}, $f;
+            $file_digests{$f} = $digest;
         }
-        $digest_counts{$digest}++;
-        $digest_files{$digest} //= [];
-        push @{$digest_files{$digest}}, $f;
-        $file_digests{$f} = $digest;
     }
 
     my %file_counts; # key = file name, value = num of files having file content
     for my $f (@$files) {
-        next unless defined $file_sizes{$f};
+        next unless defined $file_sizes{$f}; # just checking
         if (!defined($file_digests{$f})) {
             $file_counts{$f} = 1;
         } else {
@@ -304,11 +348,36 @@ sub uniq_files {
         }
     }
 
-    if ($count) {
-        return [200, "OK", [map {[$_, $file_counts{$_}]} @files]];
-    } else {
-        return [200, "OK", \@files];
+  GROUP_FILES_BY_DIGEST: {
+        last unless $group_by_digest;
+        @files = sort {
+            $file_sizes{$a} <=> $file_sizes{$b} ||
+            ($file_digests{$a} // '') cmp ($file_digests{$b} // '')
+        } @files;
     }
+
+    my @rows;
+    my $last_digest;
+    for my $f (@files) {
+        my $digest = $file_digests{$f} // $file_sizes{$f};
+
+        # add separator row
+        if ($group_by_digest && defined $last_digest && $digest ne $last_digest) {
+            push @rows, ($count || $show_digest) ? [] : '';
+        }
+
+        my $row;
+        if ($count || $show_digest) {
+            $row = [$f];
+            push @$row, $file_counts{$f} if $count;
+            push @$row, $file_digests{$f} if $show_digest;
+        } else {
+            $row = $f;
+        }
+        push @rows, $row;
+        $last_digest = $digest;
+    }
+    [200, "OK", \@rows];
 }
 
 1;

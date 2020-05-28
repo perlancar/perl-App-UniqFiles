@@ -72,6 +72,10 @@ sizes, so they will show up as empty.
 _
             schema => 'bool*',
         },
+        show_size => {
+            summary => 'Show the size for each file',
+            schema => 'bool*',
+        },
         # TODO add option follow_symlinks?
         report_unique => {
             schema => [bool => {default=>1}],
@@ -241,6 +245,7 @@ sub uniq_files {
     my $report_duplicate = $args{report_duplicate} // 2;
     my $count            = $args{count}            // 0;
     my $show_digest      = $args{show_digest}      // 0;
+    my $show_size        = $args{show_size}        // 0;
     my $digest_args      = $args{digest_args};
     my $algorithm        = $args{algorithm}        // ($digest_args ? 'Digest' : 'md5');
     my $group_by_digest  = $args{group_by_digest};
@@ -357,27 +362,32 @@ sub uniq_files {
     }
 
     my @rows;
+    my %resmeta;
     my $last_digest;
     for my $f (@files) {
         my $digest = $file_digests{$f} // $file_sizes{$f};
 
         # add separator row
         if ($group_by_digest && defined $last_digest && $digest ne $last_digest) {
-            push @rows, ($count || $show_digest) ? [] : '';
+            push @rows, ($count || $show_digest || $show_size) ? {} : '';
         }
 
         my $row;
-        if ($count || $show_digest) {
-            $row = [$f];
-            push @$row, $file_counts{$f} if $count;
-            push @$row, $file_digests{$f} if $show_digest;
+        if ($count || $show_digest || $show_size) {
+            $row = {file=>$f};
+            $row->{count} = $file_counts{$f} if $count;
+            $row->{digest} = $file_digests{$f} if $show_digest;
+            $row->{size} = $file_sizes{$f} if $show_size;
         } else {
             $row = $f;
         }
         push @rows, $row;
         $last_digest = $digest;
     }
-    [200, "OK", \@rows];
+
+    $resmeta{'table.fields'} = [qw/file size digest count/];
+
+    [200, "OK", \@rows, \%resmeta];
 }
 
 1;

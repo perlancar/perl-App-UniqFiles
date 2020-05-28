@@ -18,6 +18,22 @@ our @EXPORT_OK = qw(uniq_files);
 
 our %SPEC;
 
+sub _glob {
+    require File::Find;
+
+    my $dir;
+    my @res;
+    File::Find::finddepth(
+        sub {
+            return if -l $_;
+            return unless -f _;
+            push @res, "$File::Find::dir/$_";
+        },
+        @_,
+    );
+    @res;
+}
+
 $SPEC{uniq_files} = {
     v => 1.1,
     summary => 'Report or omit duplicate file contents',
@@ -34,6 +50,16 @@ _
             pos    => 0,
             greedy => 1,
         },
+        recurse => {
+            schema => 'bool*',
+            cmdline_aliases => {R=>{}},
+            description => <<'_',
+
+If set to true, will recurse into subdirectories.
+
+_
+        },
+        # TODO add option follow_symlinks?
         report_unique => {
             schema => [bool => {default=>1}],
             summary => 'Whether to return unique items',
@@ -140,8 +166,22 @@ _
             'x.doc.show_result' => 0,
         },
         {
-            summary   => 'List number of occurences of contents for each file',
+            summary   => 'Move all duplicate files (except one copy) in this directory (and subdirectories) to .dupes/',
+            src       => 'uniq-files -D -R * | while read f; do mv "$f" .dupes/; done',
+            src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
+        },
+        {
+            summary   => 'List number of occurences of contents for duplicate files',
             src       => 'uniq-files -c *',
+            src_plang => 'bash',
+            test      => 0,
+            'x.doc.show_result' => 0,
+        },
+        {
+            summary   => 'List number of occurences of contents for all files',
+            src       => 'uniq-files -a -c *',
             src_plang => 'bash',
             test      => 0,
             'x.doc.show_result' => 0,
@@ -153,10 +193,42 @@ sub uniq_files {
 
     my $files = $args{files};
     return [400, "Please specify files"] if !$files || !@$files;
+    my $recurse          = $args{recurse};
     my $report_unique    = $args{report_unique}    // 1;
     my $report_duplicate = $args{report_duplicate} // 2;
     my $check_content    = $args{check_content}    // 1;
     my $count            = $args{count}            // 0;
+
+    if ($recurse) {
+        $files = [ map {
+            if (-l $_) {
+                ();
+            } elsif (-d _) {
+                (_glob($_));
+            } else {
+                ($_);
+            }
+        } @$files ];
+    }
+
+    # filter non-regular files
+    my $ffiles;
+    for my $f (@$files) {
+        if (-l $f) {
+            log_warn "File '$f' is a symlink, ignored";
+            next;
+        }
+        if (-d _) {
+            log_warn "File '$f' is a directory, ignored";
+            next;
+        }
+        unless (-f _) {
+            log_warn "File '$f' is not a regular file, ignored";
+            next;
+        }
+        push @$ffiles, $f;
+    }
+    $files = $ffiles;
 
     # get sizes of all files
     my %size_counts; # key = size, value = number of files having that size

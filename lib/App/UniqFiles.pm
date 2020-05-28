@@ -1,6 +1,8 @@
 package App::UniqFiles;
 
+# AUTHORITY
 # DATE
+# DIST
 # VERSION
 
 use 5.010001;
@@ -53,22 +55,36 @@ _
                         $args->{report_duplicate} = 1;
                     },
                 },
+                D => {
+                    summary =>
+                        'Alias for --noreport-unique --report-duplicate=3',
+                    code => sub {
+                        my $args = shift;
+                        $args->{report_unique}    = 0;
+                        $args->{report_duplicate} = 3;
+                    },
+                },
             },
         },
         report_duplicate => {
-            schema => [int => {default=>2}],
+            schema => [int => {in=>[0,1,2,3], default=>2}],
             summary => 'Whether to return duplicate items',
             description => <<'_',
 
 Can be set to either 0, 1, 2.
 
 If set to 2 (the default), will only return the first of duplicate items. For
-example: file1 contains text 'a', file2 'b', file3 'a'. Only file1 will be
-returned because file2 is unique and file3 contains 'a' (already represented by
-file1).
+example: `file1` contains text 'a', `file2` 'b', `file3` 'a'. Only `file1` will
+be returned because `file2` is unique and `file3` contains 'a' (already
+represented by `file1`).
 
-If set to 1, will return all the the duplicate items. From the above example:
-file1 and file3 will be returned.
+If set to 1, will return all the the duplicate files. From the above example:
+`file1` and `file3` will be returned.
+
+If set to 3, will return all but the first of duplicate items. From the above
+example: `file3` will be returned. This is useful if you want to keep only one
+copy of the duplicate content. You can use the output of this routine to `mv` or
+`rm`.
 
 If set to 0, duplicate items will not be returned.
 
@@ -193,11 +209,19 @@ sub uniq_files {
                 push @files, $_ if $report_unique;
             } else {
                 #$log->trace("duplicate file `$_`");
-                if ($report_duplicate == 1) {
+                if ($report_duplicate == 0) {
+                    # do not report dupe files
+                } elsif ($report_duplicate == 1) {
                     push @files, $_;
                 } elsif ($report_duplicate == 2) {
                     my $digest = $file_digests{$_};
                     push @files, $_ if $_ eq $digest_files{$digest}[0];
+                } elsif ($report_duplicate == 3) {
+                    my $digest = $file_digests{$_};
+                    push @files, $_ if $_ ne $digest_files{$digest}[0];
+                } else {
+                    die "Invalid value for --report-duplicate ".
+                        "'$report_duplicate', please choose 0/1/2/3";
                 }
             }
         }

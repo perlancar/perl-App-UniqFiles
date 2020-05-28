@@ -38,6 +38,14 @@ _
             schema => [bool => {default=>1}],
             summary => 'Whether to return unique items',
             cmdline_aliases => {
+                a => {
+                    summary => 'Alias for --report-unique --report-duplicate=1 (report all files)',
+                    code => sub {
+                        my $args = shift;
+                        $args->{report_unique}    = 1;
+                        $args->{report_duplicate} = 1;
+                    },
+                },
                 u => {
                     summary => 'Alias for --report-unique --report-duplicate=0',
                     code => sub {

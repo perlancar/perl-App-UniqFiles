@@ -113,6 +113,7 @@ _
 duplicate, and so on.
 
 _
+            cmdline_aliases => {c=>{}},
         },
     },
     examples => [

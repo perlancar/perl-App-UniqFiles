@@ -282,6 +282,7 @@ sub uniq_files {
     $files = $ffiles;
 
     my %size_counts; # key = size, value = number of files having that size
+    my %size_files; # key = size, value = [file, ...]
     my %file_sizes; # key = filename, value = file size, for caching stat()
   GET_FILE_SIZES: {
         for my $f (@$files) {
@@ -291,16 +292,20 @@ sub uniq_files {
                 next;
             }
             $size_counts{$st[7]}++;
+            $size_files{$st[7]} //= [];
+            push @{$size_files{$st[7]}}, $f;
             $file_sizes{$f} = $st[7];
         }
     }
+
+    my $calc_digest = !($algorithm eq '' || $algorithm eq 'none' || $algorithm eq 'size');
 
     # calculate digest for all files having non-unique sizes
     my %digest_counts; # key = digest, value = num of files having that digest
     my %digest_files; # key = digest, value = [file, ...]
     my %file_digests; # key = filename, value = file digest
   CALC_FILE_DIGESTS: {
-        last if $algorithm eq '' || $algorithm eq 'none' || $algorithm eq 'size';
+        last unless $calc_digest;
         require File::Digest;
 
         for my $f (@$files) {
@@ -322,7 +327,7 @@ sub uniq_files {
     for my $f (@$files) {
         next unless defined $file_sizes{$f}; # just checking
         if (!defined($file_digests{$f})) {
-            $file_counts{$f} = 1;
+            $file_counts{$f} = $size_counts{ $file_sizes{$f} };
         } else {
             $file_counts{$f} = $digest_counts{ $file_digests{$f} };
         }
@@ -330,22 +335,23 @@ sub uniq_files {
 
     #$log->trace("report_duplicate=$report_duplicate");
     my @files;
-    for (sort keys %file_counts) {
-        if ($file_counts{$_} == 1) {
-            #$log->trace("unique file `$_`");
-            push @files, $_ if $report_unique;
+    for my $f (sort keys %file_counts) {
+        if ($file_counts{$f} == 1) {
+            #$log->trace("unique file `$f`");
+            push @files, $f if $report_unique;
         } else {
-            #$log->trace("duplicate file `$_`");
+            #$log->trace("duplicate file `$f`");
+            my $is_first_copy = $calc_digest ?
+                $f eq $digest_files{ $file_digests{$f} }[0] :
+                $f eq $size_files{ $file_sizes{$f} }[0];
             if ($report_duplicate == 0) {
                 # do not report dupe files
             } elsif ($report_duplicate == 1) {
-                push @files, $_;
+                push @files, $f;
             } elsif ($report_duplicate == 2) {
-                my $digest = $file_digests{$_};
-                push @files, $_ if $_ eq $digest_files{$digest}[0];
+                push @files, $f if $is_first_copy;
             } elsif ($report_duplicate == 3) {
-                my $digest = $file_digests{$_};
-                push @files, $_ if $_ ne $digest_files{$digest}[0];
+                push @files, $f unless $is_first_copy;
             } else {
                 die "Invalid value for --report-duplicate ".
                     "'$report_duplicate', please choose 0/1/2/3";

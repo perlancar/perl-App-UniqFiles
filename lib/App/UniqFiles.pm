@@ -321,10 +321,11 @@ sub uniq_files {
 
 =head1 NOTES
 
-Warning: cannot properly handle symlinks or special files (socket, pipe,
-device), so don't feed them.
-
 
 =head1 SEE ALSO
 
 L<find-duplicate-filenames> from L<App::FindUtils>
+
+L<move-duplicate-files-to> from L<App::DuplicateFilesUtils>, which is basically
+a shortcut for C<< uniq-files -D -R . | while read f; do mv "$f" SOMEDIR/; done
+>>.

@@ -1,17 +1,17 @@
 package App::UniqFiles;
 
-# AUTHORITY
-# DATE
-# DIST
-# VERSION
-
 use 5.010001;
 use strict;
 use warnings;
 use Log::ger;
 
-require Exporter;
-our @ISA       = qw(Exporter);
+use Exporter qw(import);
+
+# AUTHORITY
+# DATE
+# DIST
+# VERSION
+
 our @EXPORT_OK = qw(uniq_files);
 
 our %SPEC;

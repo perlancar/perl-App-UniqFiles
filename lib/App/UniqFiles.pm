@@ -6,6 +6,7 @@ use warnings;
 use Log::ger;
 
 use Exporter qw(import);
+use Perinci::Sub::Util qw(gen_modified_sub);
 
 # AUTHORITY
 # DATE
@@ -70,11 +71,11 @@ Note that this routine does not compute digest for files which have unique
 sizes, so they will show up as empty.
 
 _
-            schema => 'bool*',
+            schema => 'true*',
         },
         show_size => {
             summary => 'Show the size for each file',
-            schema => 'bool*',
+            schema => 'true*',
         },
         # TODO add option follow_symlinks?
         report_unique => {
@@ -124,13 +125,13 @@ _
 
 Can be set to either 0, 1, 2.
 
-If set to 2 (the default), will only return the first of duplicate items. For
-example: `file1` contains text 'a', `file2` 'b', `file3` 'a'. Only `file1` will
-be returned because `file2` is unique and `file3` contains 'a' (already
-represented by `file1`).
+If set to 2 (the default for `uniq-files`), will only return the first of
+duplicate items. For example: `file1` contains text 'a', `file2` 'b', `file3`
+'a'. Only `file1` will be returned because `file2` is unique and `file3`
+contains 'a' (already represented by `file1`).
 
-If set to 1, will return all the the duplicate files. From the above example:
-`file1` and `file3` will be returned.
+If set to 1 (the default for `dupe-files`), will return all the the duplicate
+files. From the above example: `file1` and `file3` will be returned.
 
 If set to 3, will return all but the first of duplicate items. From the above
 example: `file3` will be returned. This is useful if you want to keep only one
@@ -188,6 +189,11 @@ duplicate, and so on.
 _
             cmdline_aliases => {count=>{}, c=>{}},
         },
+        detail => {
+            summary => 'Show details (a.k.a. --show-digest, --show-size, --show-count)',
+            schema => 'true*',
+            cmdline_aliases => {l=>{}},
+        },
     },
     examples => [
         {
@@ -198,8 +204,8 @@ _
             'x.doc.show_result' => 0,
         },
         {
-            summary   => 'List all files which have duplicate contents',
-            src       => 'uniq-files -d *',
+            summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies)',
+            src       => 'uniq-files -R -l -d *',
             src_plang => 'bash',
             test      => 0,
             'x.doc.show_result' => 0,
@@ -249,6 +255,12 @@ sub uniq_files {
     my $digest_args      = $args{digest_args};
     my $algorithm        = $args{algorithm}        // ($digest_args ? 'Digest' : 'md5');
     my $group_by_digest  = $args{group_by_digest};
+
+    if ($args{detail}) {
+        $show_digest = 1;
+        $show_size = 1;
+        $show_count = 1;
+    }
 
     if ($recurse) {
         $files = [ map {
@@ -395,6 +407,36 @@ sub uniq_files {
 
     [200, "OK", \@rows, \%resmeta];
 }
+
+gen_modified_sub(
+    base_name => 'uniq_files',
+    output_name => 'dupe_files',
+    modify_args => {
+        report_unique => sub {
+            $_[0]{schema} = [bool => {default=>0}];
+        },
+        report_duplicate => sub {
+            $_[0]{schema} = [int => {in=>[0,1,2,3], default=>1}];
+        },
+    },
+    modify_meta => sub {
+        $_[0]{examples} = [
+            {
+                summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies)',
+                src       => 'dupe-files -R *',
+                src_plang => 'bash',
+                test      => 0,
+                'x.doc.show_result' => 0,
+            },
+        ];
+    },
+    output_code => sub {
+        my %args = @_;
+        $args{report_unique} //= 0;
+        $args{report_duplicate} //= 1;
+        uniq_files(%args);
+    },
+);
 
 1;
 #ABSTRACT:

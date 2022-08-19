@@ -423,7 +423,7 @@ gen_modified_sub(
         $_[0]{examples} = [
             {
                 summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies)',
-                src       => 'dupe-files -R *',
+                src       => 'dupe-files -lR *',
                 src_plang => 'bash',
                 test      => 0,
                 'x.doc.show_result' => 0,

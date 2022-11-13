@@ -1,6 +1,6 @@
 #!perl
 
-use 5.010;
+use 5.010001;
 use strict;
 use warnings;
 use Test::More 0.98;
@@ -12,9 +12,13 @@ use App::UniqFiles qw(uniq_files);
 
 my $dir = tempdir(CLEANUP => 1);
 $CWD = $dir;
+my $time = time();
 
 write_text("f1", "a");  # dupe c=3
-write_text("f2", "a");  # dupe c=3
+utime $time, $time, "f1";
+write_text("f2", "a");  # dupe c=3, different mtime than f1
+utime $time-1, $time-1, "f1";
+
 write_text("f3", "c");  # uniq
 write_text("f4", "aa"); # uniq unless -R
 write_text("f5", "a");  # dupe c=3

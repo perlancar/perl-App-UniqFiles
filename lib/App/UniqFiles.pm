@@ -48,7 +48,7 @@ _
             schema => ['array*' => {of=>'str*'}],
             req    => 1,
             pos    => 0,
-            greedy => 1,
+            slurpy => 1,
         },
         recurse => {
             schema => 'bool*',

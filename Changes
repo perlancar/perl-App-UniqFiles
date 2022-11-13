@@ -1,3 +1,8 @@
+0.135   2022-11-13  Released-By: PERLANCAR; Urgency: medium
+
+        - Add option: --authoritative-dir (-O).
+
+
 0.134   2022-08-19  Released-By: PERLANCAR; Urgency: medium
 
         - [ux] Add CLI dupe-files with the default of showing duplicate

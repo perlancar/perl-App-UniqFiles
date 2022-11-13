@@ -249,8 +249,8 @@ _
             'x.doc.show_result' => 0,
         },
         {
-            summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies), exclude some dir patterns',
-            src       => q(uniq-files -R -l -d -x 'html' .),
+            summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies), exclude some files',
+            src       => q(uniq-files -R -l -d -x '\.git/' --min-size 10k .),
             src_plang => 'bash',
             test      => 0,
             'x.doc.show_result' => 0,

@@ -1,3 +1,10 @@
+0.136   2022-11-13  Released-By: PERLANCAR; Urgency: medium
+
+        - Add options: --include-file-patterns (-I),
+          --exclude-file-patterns (-X), --exclude-empty-files (-Z),
+          --min-size, --max-size.
+
+
 0.135   2022-11-13  Released-By: PERLANCAR; Urgency: medium
 
         - Add option: --authoritative-dir (-O).

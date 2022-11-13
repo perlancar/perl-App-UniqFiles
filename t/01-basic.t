@@ -113,5 +113,10 @@ subtest "opt:authoritative_dirs" => sub {
 };
 
 # XXX test opt:digest_args
+# XXX test opt:include_file_patterns
+# XXX test opt:exclude_file_patterns
+# XXX test opt:exclude_empty_files
+# XXX test opt:min_size
+# XXX test opt:max_size
 
 done_testing;

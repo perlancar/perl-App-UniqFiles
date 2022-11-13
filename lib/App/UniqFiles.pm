@@ -44,6 +44,34 @@ our %argspec_authoritative_dirs = (
         cmdline_aliases => {O=>{}},
     },
 );
+our %argspecs_filter = (
+    include_file_patterns => {
+        summary => 'Filename (including path) regex patterns to exclude',
+        'x.name.is_plural' => 1,
+        'x.name.singular' => 'include_file_pattern',
+        schema => ['array*', of=>'str*'], # XXX re
+        cmdline_aliases => {I=>{}},
+    },
+    exclude_file_patterns => {
+        summary => 'Filename (including path) regex patterns to include',
+        'x.name.is_plural' => 1,
+        'x.name.singular' => 'exclude_file_pattern',
+        schema => ['array*', of=>'str*'], # XXX re
+        cmdline_aliases => {X=>{}},
+    },
+    exclude_empty_files => {
+        schema => 'bool*',
+        cmdline_aliases => {Z=>{}},
+    },
+    min_size => {
+        summary => 'Minimum file size to consider',
+        schema => 'filesize*',
+    },
+    max_size => {
+        summary => 'Maximum file size to consider',
+        schema => 'filesize*',
+    },
+);
 
 $SPEC{uniq_files} = {
     v => 1.1,
@@ -210,6 +238,7 @@ _
             cmdline_aliases => {l=>{}},
         },
         %argspec_authoritative_dirs,
+        %argspecs_filter,
     },
     examples => [
         {
@@ -220,8 +249,8 @@ _
             'x.doc.show_result' => 0,
         },
         {
-            summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies)',
-            src       => 'uniq-files -R -l -d *',
+            summary   => 'List all files (recursively, and in detail) which have duplicate contents (all duplicate copies), exclude some dir patterns',
+            src       => q(uniq-files -R -l -d -x 'html' .),
             src_plang => 'bash',
             test      => 0,
             'x.doc.show_result' => 0,
@@ -271,8 +300,6 @@ sub uniq_files {
     my $digest_args      = $args{digest_args};
     my $algorithm        = $args{algorithm}        // ($digest_args ? 'Digest' : 'md5');
     my $group_by_digest  = $args{group_by_digest};
-    my @authoritative_dirs = $args{authoritative_dirs} && @{$args{authoritative_dirs}} ?
-        @{ $args{authoritative_dirs} } : ();
 
     if ($args{detail}) {
         $show_digest = 1;
@@ -280,12 +307,41 @@ sub uniq_files {
         $show_count = 1;
     }
 
+    my @authoritative_dirs = $args{authoritative_dirs} && @{$args{authoritative_dirs}} ?
+        @{ $args{authoritative_dirs} } : ();
     for my $dir (@authoritative_dirs) {
         (-d $dir) or return [400, "Authoritative dir '$dir' does not exist or not a directory"];
         my $abs_dir = abs_path $dir or return [400, "Cannot get absolute path for authoritative dir '$dir'"];
         $dir = $abs_dir;
     }
     #log_trace "authoritative_dirs=%s", \@authoritative_dirs if @authoritative_dirs;
+
+    my @include_re;
+    for my $re0 (@{ $args{include_file_patterns} // [] }) {
+        require Regexp::Util;
+        my $re;
+        if (ref $re0 eq 'Regexp') {
+            $re = $re0;
+        } else {
+            eval { $re = Regexp::Util::deserialize_regexp("qr($re0)") };
+            return [400, "Invalid/unsafe regex pattern in include_file_patterns '$re0': $@"] if $@;
+            return [400, "Unsafe regex pattern (contains embedded code) in include_file_patterns '$re0'"] if Regexp::Util::regexp_seen_evals($re);
+        }
+        push @include_re, $re;
+    }
+    my @exclude_re;
+    for my $re0 (@{ $args{exclude_file_patterns} // [] }) {
+        require Regexp::Util;
+        my $re;
+        if (ref $re0 eq 'Regexp') {
+            $re = $re0;
+        } else {
+            eval { $re = Regexp::Util::deserialize_regexp("qr($re0)") };
+            return [400, "Invalid/unsafe regex pattern in exclude_file_patterns '$re0': $@"] if $@;
+            return [400, "Unsafe regex pattern (contains embedded code) in exclude_file_patterns '$re0'"] if Regexp::Util::regexp_seen_evals($re);
+        }
+        push @exclude_re, $re;
+    }
 
     if ($recurse) {
         $files = [ map {
@@ -299,25 +355,60 @@ sub uniq_files {
         } @$files ];
     }
 
-  FILTER_NON_REGULAR_FILES: {
+  FILTER: {
         my $ffiles;
+      FILE:
         for my $f (@$files) {
             if (-l $f) {
                 log_warn "File '$f' is a symlink, ignored";
-                next;
+                next FILE;
             }
             if (-d _) {
                 log_warn "File '$f' is a directory, ignored";
-                next;
+                next FILE;
             }
             unless (-f _) {
                 log_warn "File '$f' is not a regular file, ignored";
-                next;
+                next FILE;
             }
+
+            if (@include_re) {
+                my $included;
+                for my $re (@include_re) {
+                    if ($f =~ $re) { $included++; last }
+                }
+                unless ($included) {
+                    log_info "File '$f' is not in --include-file-patterns, skipped";
+                    next FILE;
+                }
+            }
+            if (@exclude_re) {
+                for my $re (@exclude_re) {
+                    if ($f =~ $re) {
+                        log_info "File '$f' is in --exclude-file-patterns, skipped";
+                        next FILE;
+                    }
+                }
+            }
+
+            my $size = -s $f;
+            if ($args{exclude_empty_files} && !$size) {
+                log_info "File '$f' is empty, skipped by option -Z";
+                next FILE;
+            }
+            if ($args{min_size} && $size < $args{min_size}) {
+                log_info "File '$f' (size=$size) is smaller than min_file ($args{min_size}), skipped";
+                next FILE;
+            }
+            if ($args{max_size} && $size > $args{max_size}) {
+                log_info "File '$f' (size=$size) is larger than max_file ($args{max_size}), skipped";
+                next FILE;
+            }
+
             push @$ffiles, $f;
         }
         $files = $ffiles;
-    } # FILTER_NON_REGULAR_FILES
+    } # FILTER
 
     my %size_counts; # key = size, value = number of files having that size
     my %size_files; # key = size, value = [file, ...]

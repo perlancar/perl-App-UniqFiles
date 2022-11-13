@@ -5,6 +5,7 @@ use strict;
 use warnings;
 use Log::ger;
 
+use Cwd qw(abs_path);
 use Exporter qw(import);
 use Perinci::Sub::Util qw(gen_modified_sub);
 
@@ -33,6 +34,16 @@ sub _glob {
     );
     @res;
 }
+
+our %argspec_authoritative_dirs = (
+    authoritative_dirs => {
+        summary => 'Denote director(y|ies) where authoritative/"Original" copies are found',
+        'x.name.is_plural' => 1,
+        'x.name.singular' => 'authoritative_dir',
+        schema => ['array*', of=>'str*'], # XXX dirname
+        cmdline_aliases => {O=>{}},
+    },
+);
 
 $SPEC{uniq_files} = {
     v => 1.1,
@@ -123,22 +134,26 @@ _
             summary => 'Whether to return duplicate items',
             description => <<'_',
 
-Can be set to either 0, 1, 2.
-
-If set to 2 (the default for `uniq-files`), will only return the first of
-duplicate items. For example: `file1` contains text 'a', `file2` 'b', `file3`
-'a'. Only `file1` will be returned because `file2` is unique and `file3`
-contains 'a' (already represented by `file1`).
-
-If set to 1 (the default for `dupe-files`), will return all the the duplicate
-files. From the above example: `file1` and `file3` will be returned.
-
-If set to 3, will return all but the first of duplicate items. From the above
-example: `file3` will be returned. This is useful if you want to keep only one
-copy of the duplicate content. You can use the output of this routine to `mv` or
-`rm`.
+Can be set to either 0, 1, 2, or 3.
 
 If set to 0, duplicate items will not be returned.
+
+If set to 1 (the default for `dupe-files`), will return all the the duplicate
+files. For example: `file1` contains text 'a', `file2` 'b', `file3` 'a'. Then
+`file1` and `file3` will be returned.
+
+If set to 2 (the default for `uniq-files`), will only return the first of
+duplicate items. Continuing from previous example, only `file1` will be returned
+because `file2` is unique and `file3` contains 'a' (already represented by
+`file1`). If one or more `--authoritative-dir` (`-O`) options are specified,
+files under these directories will be preferred.
+
+If set to 3, will return all but the first of duplicate items. Continuing from
+previous example: `file3` will be returned. This is useful if you want to keep
+only one copy of the duplicate content. You can use the output of this routine
+to `mv` or `rm`. Similar to the previous case, if one or more
+`--authoritative-dir` (`-O`) options are specified, then files under these
+directories will not be listed if possible.
 
 _
             cmdline_aliases => {
@@ -194,6 +209,7 @@ _
             schema => 'true*',
             cmdline_aliases => {l=>{}},
         },
+        %argspec_authoritative_dirs,
     },
     examples => [
         {
@@ -255,12 +271,21 @@ sub uniq_files {
     my $digest_args      = $args{digest_args};
     my $algorithm        = $args{algorithm}        // ($digest_args ? 'Digest' : 'md5');
     my $group_by_digest  = $args{group_by_digest};
+    my @authoritative_dirs = $args{authoritative_dirs} && @{$args{authoritative_dirs}} ?
+        @{ $args{authoritative_dirs} } : ();
 
     if ($args{detail}) {
         $show_digest = 1;
         $show_size = 1;
         $show_count = 1;
     }
+
+    for my $dir (@authoritative_dirs) {
+        (-d $dir) or return [400, "Authoritative dir '$dir' does not exist or not a directory"];
+        my $abs_dir = abs_path $dir or return [400, "Cannot get absolute path for authoritative dir '$dir'"];
+        $dir = $abs_dir;
+    }
+    #log_trace "authoritative_dirs=%s", \@authoritative_dirs if @authoritative_dirs;
 
     if ($recurse) {
         $files = [ map {
@@ -274,24 +299,25 @@ sub uniq_files {
         } @$files ];
     }
 
-    # filter non-regular files
-    my $ffiles;
-    for my $f (@$files) {
-        if (-l $f) {
-            log_warn "File '$f' is a symlink, ignored";
-            next;
+  FILTER_NON_REGULAR_FILES: {
+        my $ffiles;
+        for my $f (@$files) {
+            if (-l $f) {
+                log_warn "File '$f' is a symlink, ignored";
+                next;
+            }
+            if (-d _) {
+                log_warn "File '$f' is a directory, ignored";
+                next;
+            }
+            unless (-f _) {
+                log_warn "File '$f' is not a regular file, ignored";
+                next;
+            }
+            push @$ffiles, $f;
         }
-        if (-d _) {
-            log_warn "File '$f' is a directory, ignored";
-            next;
-        }
-        unless (-f _) {
-            log_warn "File '$f' is not a regular file, ignored";
-            next;
-        }
-        push @$ffiles, $f;
-    }
-    $files = $ffiles;
+        $files = $ffiles;
+    } # FILTER_NON_REGULAR_FILES
 
     my %size_counts; # key = size, value = number of files having that size
     my %size_files; # key = size, value = [file, ...]
@@ -345,17 +371,59 @@ sub uniq_files {
         }
     }
 
+  SORT_DUPLICATE_FILES: {
+        last unless @authoritative_dirs;
+        my $hash = $calc_digest ? \%digest_files : \%size_files;
+        for my $key (keys %$hash) {
+            my @files = @{ $hash->{$key} };
+            my @abs_files;
+            next unless @files > 1;
+            for my $file (@files) {
+                my $abs_file = abs_path $file or do {
+                    log_error "Cannot find absolute path for duplicate file '$file', skipping duplicate set %s", \@files;
+                };
+                push @abs_files, $abs_file;
+            }
+
+            #log_trace "Duplicate files before sorting: %s", \@files;
+            @files = map { $files[$_] } sort {
+                my $file_a = $abs_files[$a];
+                my $file_a_in_authoritative_dirs = 0;
+                my $subdir_len_file_a;
+                for my $d (@authoritative_dirs) {
+                    if ($file_a =~ m!\A\Q$d\E(?:/|\z)(.*)!) { $file_a_in_authoritative_dirs++; $subdir_len_file_a = length($1); last }
+                }
+                my $file_b = $abs_files[$b];
+                my $file_b_in_authoritative_dirs = 0;
+                my $subdir_len_file_b;
+                for my $d (@authoritative_dirs) {
+                    if ($file_b =~ m!\A\Q$d\E(?:/|\z)(.*)!) { $file_b_in_authoritative_dirs++; $subdir_len_file_b = length($1); last }
+                }
+                #log_trace "  file_a=<$file_a>, in authoritative_dirs? $file_a_in_authoritative_dirs";
+                #log_trace "  file_b=<$file_b>, in authoritative_dirs? $file_b_in_authoritative_dirs";
+                # files located near the root of authoritative dir is preferred
+                # to deeper files. this is done by comparing subdir_len
+                ($file_a_in_authoritative_dirs ? $subdir_len_file_a : 9999) <=> ($file_b_in_authoritative_dirs ? $subdir_len_file_b : 9999) ||
+                    $file_a cmp $file_b;
+            } 0..$#files;
+            #log_trace "Duplicate files after sorting: %s", \@files;
+
+            $hash->{$key} = \@files;
+        }
+    }
+
     #$log->trace("report_duplicate=$report_duplicate");
     my @files;
     for my $f (sort keys %file_counts) {
         if ($file_counts{$f} == 1) {
-            #$log->trace("unique file `$f`");
+            #log_trace "unique file '$f'";
             push @files, $f if $report_unique;
         } else {
-            #$log->trace("duplicate file `$f`");
+            #log_trace "duplicate file '$f'";
             my $is_first_copy = $calc_digest ?
                 $f eq $digest_files{ $file_digests{$f} }[0] :
                 $f eq $size_files{ $file_sizes{$f} }[0];
+            #log_trace "is first copy? <$is_first_copy>";
             if ($report_duplicate == 0) {
                 # do not report dupe files
             } elsif ($report_duplicate == 1) {

@@ -23,8 +23,11 @@ write_text("f3", "c");  # uniq
 write_text("f4", "aa"); # uniq unless -R
 write_text("f5", "a");  # dupe c=3
 mkdir "subdir1";
-write_text("subdir1/f6", "aa"); # dupe under -R, c=2
+write_text("subdir1/f6", "aa"); # dupe under -R, c=3
 write_text("subdir1/f7", "ab"); # uniq
+mkdir "subdir2";
+write_text("subdir2/f8", "aa"); # dupe under -R, c=3
+write_text("subdir2/f9", "ac"); # uniq
 my @f = glob "*";
 
 my $res;
@@ -77,12 +80,36 @@ subtest "opt:show_digest=1, group_by_digest=1" => sub {
         {},
         {file=>"f4",digest=>"4124bc0a9335c27f086f24ba207a4912"},
         {file=>"subdir1/f6",digest=>"4124bc0a9335c27f086f24ba207a4912"},
+        {file=>"subdir2/f8",digest=>"4124bc0a9335c27f086f24ba207a4912"},
+        {},
+        {file=>"subdir2/f9",digest=>"e2075474294983e013ee4dd2201c7a73"},
     ]) or diag explain $res;
 };
 
 subtest "opt:algorithm=sha1" => sub {
     $res = uniq_files(files => \@f, recurse=>1, algorithm=>"sha1", report_duplicate=>0, show_digest=>1);
-    is_deeply($res->[2], [{file=>"f3",digest=>"84a516841ba77a5b4648de2cd0dfcb30ea46dbb4"}, {file=>"subdir1/f7",digest=>"da23614e02469a0d7c7bd1bdab5c9c474b1904dc"}]) or diag explain $res;
+    is_deeply($res->[2], [
+        {file=>"f3",digest=>"84a516841ba77a5b4648de2cd0dfcb30ea46dbb4"},
+        {file=>"subdir1/f7",digest=>"da23614e02469a0d7c7bd1bdab5c9c474b1904dc"},
+        {file=>"subdir2/f9",digest=>"0c11d463c749db5838e2c0e489bf869d531e5403"},
+    ]) or diag explain $res;
+};
+
+subtest "opt:authoritative_dirs" => sub {
+    # with report_duplicate=1
+    $res = uniq_files(files => \@f, recurse=>1, report_unique=>0, report_duplicate=>2, authoritative_dirs=>["subdir2"]);
+    is_deeply($res->[2], [
+        "f1",
+        "subdir2/f8",
+    ]) or diag explain $res;
+    # with report_duplicate=3
+    $res = uniq_files(files => \@f, recurse=>1, report_unique=>0, report_duplicate=>3, authoritative_dirs=>["subdir2"]);
+    is_deeply($res->[2], [
+        "f2",
+        "f4",
+        "f5",
+        "subdir1/f6",
+    ]) or diag explain $res;
 };
 
 # XXX test opt:digest_args

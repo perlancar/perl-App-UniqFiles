@@ -570,6 +570,12 @@ sub uniq_files {
 gen_modified_sub(
     base_name => 'uniq_files',
     output_name => 'dupe_files',
+    description => <<'_',
+
+This is a thin wrapper to <prog:uniq-files>. It defaults `report_unique` to 0
+and `report_duplicate` to 1.
+
+_
     modify_args => {
         report_unique => sub {
             $_[0]{schema} = [bool => {default=>0}];

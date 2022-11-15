@@ -75,7 +75,7 @@ our %argspecs_filter = (
 
 $SPEC{uniq_files} = {
     v => 1.1,
-    summary => 'Report or omit duplicate file contents',
+    summary => 'Report duplicate or unique file contents',
     description => <<'_',
 
 Given a list of filenames, will check each file size and content for duplicate

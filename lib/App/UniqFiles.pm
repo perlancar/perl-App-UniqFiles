@@ -588,7 +588,7 @@ gen_modified_sub(
     output_name => 'dupe_files',
     description => <<'_',
 
-This is a thin wrapper to <prog:uniq-files>. It defaults `report_unique` to 0
+This is a thin wrapper for <prog:uniq-files>. It defaults `report_unique` to 0
 and `report_duplicate` to 1.
 
 _

@@ -75,20 +75,48 @@ our %argspecs_filter = (
 
 $SPEC{uniq_files} = {
     v => 1.1,
-    summary => 'Report duplicate or unique file contents',
+    summary => 'Report duplicate or unique files, optionally perform action on them',
     description => <<'_',
 
-Given a list of filenames, will check each file size and content for duplicate
-content. Interface is a bit like the `uniq` Unix command-line program.
+Given a list of filenames, will check each file's content (and/or size, and/or
+only name) to decide whether the file is a duplicate of another.
+
+There is a certain amount of flexibility on how duplicate is determined:
+- when comparing content, various hashing algorithm is supported;
+- when comparing size, a certain tolerance % is allowed;
+- when comparing filename, munging can first be done.
+
+There is flexibility on what to do with duplicate files:
+- just print unique/duplicate files (and let other utilities down the pipe deal
+  with them);
+- move duplicates to some location;
+- open the files first and prompt for action;
+- let a Perl code process the files.
+
+Interface is loosely based on the `uniq` Unix command-line program.
 
 _
     args    => {
+        actions => {
+            'x.name.is_plural' => 1,
+            'x.name.singular' => 'action',
+            summary => 'What action(s) to perform',
+            schema => ['array*', of=>['str*', in=>[qw/report/]], 'prefilters'=>['Array::check_uniq']],
+            default => ['report'],
+            description => <<'_',
+
+The following actions are available. More than one action can be
+_
+            tags => ['category:input'],
+        },
         files => {
             schema => ['array*' => {of=>'str*'}],
             req    => 1,
             pos    => 0,
             slurpy => 1,
+            tags => ['category:input'],
         },
+
         recurse => {
             schema => 'bool*',
             cmdline_aliases => {R=>{}},
@@ -97,6 +125,7 @@ _
 If set to true, will recurse into subdirectories.
 
 _
+            tags => ['category:input'],
         },
         group_by_digest => {
             summary => 'Sort files by its digest (or size, if not computing digest), separate each different digest',

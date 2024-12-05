@@ -8,7 +8,7 @@ use strict;
 # VERSION
 
 1;
-#ABSTRACT:
+#ABSTRACT: Report unique/duplicate file {names,contents}
 
 =head1 SYNOPSIS
 

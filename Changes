@@ -1,3 +1,8 @@
+0.142   2024-12-05  Released-By: PERLANCAR; Urgency: medium
+
+        - Split backend to File-FindUniq.
+
+
 0.141   2023-02-06  Released-By: PERLANCAR; Urgency: medium
 
         - No functional changes.
